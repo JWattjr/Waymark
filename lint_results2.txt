@@ -1,0 +1,97 @@
+
+> waymark@0.1.0 lint
+> eslint
+
+
+C:\Users\User\Desktop\Waymark\components\TimelineView.tsx
+  28:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\User\Desktop\Waymark\components\TimelineView.tsx:28:9
+  26 |         }
+  27 |         all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+> 28 |         setExperiences(all);
+     |         ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |       }
+  30 |     }
+  31 |   }, []);  react-hooks/set-state-in-effect
+  45:36  warning  'i' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx
+   3:73  warning  'MutableRefObject' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  44:42  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  51:16  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx:51:16
+  49 |     return Array.from({ length: 40 }).map((_, i) => ({
+  50 |       id: i,
+> 51 |       left: `${Math.random() * 100}%`,
+     |                ^^^^^^^^^^^^^ Cannot call impure function
+  52 |       top: `${Math.random() * 100}%`,
+  53 |       size: Math.random() * 3 + 1,
+  54 |       delay: `${Math.random() * 5}s`,  react-hooks/purity
+  52:15  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx:52:15
+  50 |       id: i,
+  51 |       left: `${Math.random() * 100}%`,
+> 52 |       top: `${Math.random() * 100}%`,
+     |               ^^^^^^^^^^^^^ Cannot call impure function
+  53 |       size: Math.random() * 3 + 1,
+  54 |       delay: `${Math.random() * 5}s`,
+  55 |       duration: `${Math.random() * 4 + 4}s`              react-hooks/purity
+  53:13  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx:53:13
+  51 |       left: `${Math.random() * 100}%`,
+  52 |       top: `${Math.random() * 100}%`,
+> 53 |       size: Math.random() * 3 + 1,
+     |             ^^^^^^^^^^^^^ Cannot call impure function
+  54 |       delay: `${Math.random() * 5}s`,
+  55 |       duration: `${Math.random() * 4 + 4}s`
+  56 |     }));                    react-hooks/purity
+  54:17  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx:54:17
+  52 |       top: `${Math.random() * 100}%`,
+  53 |       size: Math.random() * 3 + 1,
+> 54 |       delay: `${Math.random() * 5}s`,
+     |                 ^^^^^^^^^^^^^ Cannot call impure function
+  55 |       duration: `${Math.random() * 4 + 4}s`
+  56 |     }));
+  57 |   }, []);                                             react-hooks/purity
+  55:20  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\Desktop\Waymark\components\WorldMap.tsx:55:20
+  53 |       size: Math.random() * 3 + 1,
+  54 |       delay: `${Math.random() * 5}s`,
+> 55 |       duration: `${Math.random() * 4 + 4}s`
+     |                    ^^^^^^^^^^^^^ Cannot call impure function
+  56 |     }));
+  57 |   }, []);
+  58 |                                                                                react-hooks/purity
+  64:33  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  65:3   warning  React Hook useEffect contains a call to 'setGeoData'. Without a list of dependencies, this can lead to an infinite chain of updates. To fix this, pass [] as a second argument to the useEffect Hook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+C:\Users\User\Desktop\Waymark\lib\shelby\index.ts
+  41:9   error    'account' is never reassigned. Use 'const' instead  prefer-const
+  63:16  warning  'e' is defined but never used                       @typescript-eslint/no-unused-vars
+
+✖ 13 problems (9 errors, 4 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
