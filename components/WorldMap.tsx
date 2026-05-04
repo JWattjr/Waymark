@@ -42,7 +42,7 @@ export default function WorldMap() {
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState<[number, number]>([0, 55]);
   const [galleryIdx, setGalleryIdx] = useState(0);
-  const [geoData, setGeoData] = useState<Record<string, unknown>[]>([]);
+  const [geoData, setGeoData] = useState<any[]>([]);
   const [ripples, setRipples] = useState<{id: number, x: number, y: number}[]>([]);
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [latestTx, setLatestTx] = useState<string | null>(null);
@@ -343,25 +343,25 @@ export default function WorldMap() {
 
       {/* Map */}
       <ComposableMap projection="geoMercator" projectionConfig={{ scale: 180 }} width={800} height={400} className="w-full h-full">
-        <ZoomableGroup zoom={zoom} center={center} onMoveEnd={({ coordinates, zoom: z }) => { setCenter(coordinates as [number, number]); setZoom(z); }}>
+        <ZoomableGroup zoom={zoom} center={center} onMoveEnd={({ coordinates, zoom: z }: any) => { setCenter(coordinates as [number, number]); setZoom(z); }}>
           <Geographies geography={geoUrl}>
-            {({ geographies }) => {
+            {({ geographies }: any) => {
               if (geoData.length === 0 && geographies.length > 0) { pendingGeoData.current = geographies; }
               return (
                 <>
-                  {geographies.map((geo) => {
+                  {geographies.map((geo: any) => {
                     const isVisited = !!visitedCountries[geo.id]?.length;
                     const isSelected = selectedCountry?.id === geo.id;
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        onMouseEnter={(e) => {
+                        onMouseEnter={(e: React.MouseEvent) => {
                           const { NAME, name } = geo.properties;
                           setTooltipContent(NAME || name);
                           setTooltipPos({ x: e.clientX, y: e.clientY });
                         }}
-                        onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
+                        onMouseMove={(e: React.MouseEvent) => setTooltipPos({ x: e.clientX, y: e.clientY })}
                         onMouseLeave={() => setTooltipContent("")}
                         onClick={() => handleCountryClick(geo)}
                         style={{
@@ -386,7 +386,7 @@ export default function WorldMap() {
                     );
                   })}
                   {/* Country labels */}
-                  {geographies.map((geo) => {
+                  {geographies.map((geo: any) => {
                     const centroid = geoCentroid(geo);
                     const { NAME, name } = geo.properties;
                     return (
@@ -398,7 +398,7 @@ export default function WorldMap() {
                     );
                   })}
                   {/* Memory count badges + pulsing beacons */}
-                  {geographies.filter(g => (visitedCountries[g.id]?.length || 0) > 0).map(geo => {
+                  {geographies.filter((g: any) => (visitedCountries[g.id]?.length || 0) > 0).map((geo: any) => {
                     const centroid = geoCentroid(geo);
                     const count = visitedCountries[geo.id]?.length || 0;
                     return (
