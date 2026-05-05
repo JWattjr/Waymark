@@ -433,7 +433,7 @@ export default function WorldMap() {
 
       {/* Sidebar */}
       {selectedCountry && (
-        <div className="absolute top-0 right-0 w-[420px] h-full bg-[var(--color-card)] shadow-2xl z-40 flex flex-col animate-slide-in border-l border-[var(--color-border)]/30">
+        <div className="absolute bottom-0 md:top-0 right-0 w-full md:w-[420px] h-[65vh] md:h-full bg-[var(--color-card)] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] md:shadow-2xl z-40 flex flex-col animate-slide-up md:animate-slide-in border-t md:border-t-0 md:border-l border-[var(--color-border)]/30 rounded-t-3xl md:rounded-none">
           {/* Header */}
           <div className="p-6 border-b border-[var(--color-border)]/20 flex justify-between items-center bg-[var(--color-background)]">
             <div>
