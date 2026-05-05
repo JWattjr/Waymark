@@ -46,6 +46,14 @@ export default function WorldMap() {
   const [ripples, setRipples] = useState<{id: number, x: number, y: number}[]>([]);
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [latestTx, setLatestTx] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   useEffect(() => {
     if (latestTx) {
@@ -269,7 +277,7 @@ export default function WorldMap() {
       <div className="vignette-overlay" style={{ zIndex: 1 }} />
 
       {/* Compass rose — small, bottom-right */}
-      <div style={{ position: 'absolute', bottom: 100, right: 100, width: 70, height: 70, pointerEvents: 'none', zIndex: 6, opacity: 0.2 }}>
+      <div className="hidden md:block" style={{ position: 'absolute', bottom: 100, right: 100, width: 70, height: 70, pointerEvents: 'none', zIndex: 6, opacity: 0.2 }}>
         <svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'compassSpin 120s linear infinite' }}>
           <polygon points="50,10 54,45 50,42 46,45" fill="rgba(139,94,60,0.6)" />
           <polygon points="50,90 54,55 50,58 46,55" fill="rgba(139,115,85,0.4)" />
@@ -283,7 +291,7 @@ export default function WorldMap() {
         </svg>
       </div>
       {/* Cursor glow */}
-      <div className="cursor-glow" style={{ left: cursorPos.x, top: cursorPos.y }} />
+      <div className="hidden md:block cursor-glow" style={{ left: cursorPos.x, top: cursorPos.y }} />
 
       {/* Search Bar */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 w-full max-w-md px-4">
@@ -312,22 +320,22 @@ export default function WorldMap() {
       </div>
 
       {/* Zoom Controls */}
-      <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
+      <div className="hidden md:flex absolute bottom-8 left-8 z-30 flex-col gap-2">
         <button onClick={() => setZoom(z => Math.min(z * 1.5, 10))} className="w-10 h-10 rounded-xl bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 shadow-lg flex items-center justify-center text-lg font-bold text-[var(--color-primary)] hover:bg-[var(--color-card)] transition-colors">+</button>
         <button onClick={() => setZoom(z => Math.max(z / 1.5, 1))} className="w-10 h-10 rounded-xl bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 shadow-lg flex items-center justify-center text-lg font-bold text-[var(--color-primary)] hover:bg-[var(--color-card)] transition-colors">−</button>
       </div>
 
       {/* Progress Counter */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-2xl px-6 py-3 shadow-lg flex items-center gap-3">
-        <span className="text-2xl font-bold text-[var(--color-visited)]">{visitedCount}</span>
-        <span className="text-[var(--color-secondary)] text-sm">/ {TOTAL_COUNTRIES} countries explored</span>
-        <div className="w-24 h-2 bg-[var(--color-border)]/30 rounded-full overflow-hidden ml-2">
+      <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full md:rounded-2xl px-6 py-3 shadow-lg flex items-center gap-3 whitespace-nowrap">
+        <span className="text-xl md:text-2xl font-bold text-[var(--color-visited)]">{visitedCount}</span>
+        <span className="text-[var(--color-secondary)] text-xs md:text-sm">/ {TOTAL_COUNTRIES} explored</span>
+        <div className="hidden md:block w-24 h-2 bg-[var(--color-border)]/30 rounded-full overflow-hidden ml-2">
           <div className="h-full bg-[var(--color-visited)] rounded-full transition-all duration-700 progress-glow" style={{ width: `${(visitedCount / TOTAL_COUNTRIES) * 100}%` }} />
         </div>
       </div>
 
       {/* Export Button */}
-      <div className="absolute bottom-8 right-8 z-30">
+      <div className="hidden md:block absolute bottom-8 right-8 z-30">
         <button onClick={handleExport} className="bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-2xl px-5 py-3 shadow-lg text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-card)] transition-colors flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export Map
@@ -342,7 +350,7 @@ export default function WorldMap() {
       )}
 
       {/* Map */}
-      <ComposableMap projection="geoMercator" projectionConfig={{ scale: 180 }} width={800} height={400} className="w-full h-full">
+      <ComposableMap projection="geoMercator" projectionConfig={{ scale: isMobile ? 220 : 180 }} width={800} height={isMobile ? 700 : 400} className="w-full h-full">
         <ZoomableGroup zoom={zoom} center={center} onMoveEnd={({ coordinates, zoom: z }: any) => { setCenter(coordinates as [number, number]); setZoom(z); }}>
           <Geographies geography={geoUrl}>
             {({ geographies }: any) => {
@@ -386,7 +394,7 @@ export default function WorldMap() {
                     );
                   })}
                   {/* Country labels */}
-                  {geographies.map((geo: any) => {
+                  {!isMobile && geographies.map((geo: any) => {
                     const centroid = geoCentroid(geo);
                     const { NAME, name } = geo.properties;
                     return (
@@ -435,15 +443,15 @@ export default function WorldMap() {
       {selectedCountry && (
         <div className="absolute bottom-0 md:top-0 right-0 w-full md:w-[420px] h-[65vh] md:h-full bg-[var(--color-card)] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] md:shadow-2xl z-40 flex flex-col animate-slide-up md:animate-slide-in border-t md:border-t-0 md:border-l border-[var(--color-border)]/30 rounded-t-3xl md:rounded-none">
           {/* Header */}
-          <div className="p-6 border-b border-[var(--color-border)]/20 flex justify-between items-center bg-[var(--color-background)]">
+          <div className="p-4 md:p-6 border-b border-[var(--color-border)]/20 flex justify-between items-center bg-[var(--color-background)] shrink-0">
             <div>
-              <h2 className="text-2xl font-bold text-[var(--color-primary)]">{selectedCountry.name}</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-[var(--color-primary)]">{selectedCountry.name}</h2>
               <p className="text-xs text-[var(--color-secondary)] mt-1">{experiences.length} {experiences.length === 1 ? "memory" : "memories"} archived</p>
             </div>
             <button onClick={() => setSelectedCountry(null)} className="w-9 h-9 rounded-xl bg-[var(--color-background)] flex items-center justify-center text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)]/30 transition-colors">&times;</button>
           </div>
 
-          <div className="flex-1 overflow-y-auto sidebar-scroll p-6 flex flex-col gap-6">
+          <div className="flex-1 overflow-y-auto sidebar-scroll p-4 md:p-6 flex flex-col gap-6">
             {/* Upload Form */}
             <div className="space-y-3 bg-[var(--color-background)] p-5 rounded-2xl border border-[var(--color-border)]/20">
               <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-secondary)]">Add Memory</h3>

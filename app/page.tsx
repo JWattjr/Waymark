@@ -22,12 +22,12 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-[var(--color-ocean)]">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 py-6 pointer-events-none">
-        <div className="text-2xl font-bold tracking-tight title-shimmer pointer-events-auto">Waymark</div>
+      <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-4 md:px-8 py-4 md:py-6 pointer-events-none">
+        <div className="text-xl md:text-2xl font-bold tracking-tight title-shimmer pointer-events-auto">Waymark</div>
         
-        <div className="flex items-center gap-4 pointer-events-auto">
+        <div className="flex items-center gap-2 md:gap-4 pointer-events-auto">
           {/* View Toggle */}
-          <div className="bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full p-1 shadow-lg flex">
+          <div className="hidden md:flex bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full p-1 shadow-lg">
             <button 
               onClick={() => setView('map')} 
               className={`px-4 py-1.5 text-xs font-medium rounded-full transition-colors ${view === 'map' ? 'bg-[var(--color-primary)] text-[var(--color-card)]' : 'text-[var(--color-secondary)] hover:text-[var(--color-primary)]'}`}
