@@ -1,62 +1,66 @@
 "use client";
 
-import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 
-const WorldMap = dynamic(() => import('@/components/WorldMap'), { ssr: false });
-const TimelineView = dynamic(() => import('@/components/TimelineView'), { ssr: false });
-const WalletConnectButton = dynamic(() => import('@/components/WalletConnectButton'), { ssr: false });
+const WorldMap = dynamic(() => import("@/components/WorldMap"), { ssr: false });
+const TimelineView = dynamic(() => import("@/components/TimelineView"), { ssr: false });
+const PassportView = dynamic(() => import("@/components/PassportView"), { ssr: false });
+const WalletConnectButton = dynamic(() => import("@/components/WalletConnectButton"), { ssr: false });
 
 export default function LandingPage() {
   const [isDark, setIsDark] = useState(false);
-  const [view, setView] = useState<'map' | 'timeline'>('map');
+  const [view, setView] = useState<"map" | "timeline" | "passport">("map");
 
   useEffect(() => {
     if (isDark) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, [isDark]);
 
   return (
     <main className="min-h-screen bg-[var(--color-ocean)]">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-4 md:px-8 py-4 md:py-6 pointer-events-none">
-        <div className="text-xl md:text-2xl font-bold tracking-tight title-shimmer pointer-events-auto">Waymark</div>
-        
-        <div className="flex items-center gap-2 md:gap-4 pointer-events-auto">
-          {/* View Toggle */}
-          <div className="hidden md:flex bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full p-1 shadow-lg">
-            <button 
-              onClick={() => setView('map')} 
-              className={`px-4 py-1.5 text-xs font-medium rounded-full transition-colors ${view === 'map' ? 'bg-[var(--color-primary)] text-[var(--color-card)]' : 'text-[var(--color-secondary)] hover:text-[var(--color-primary)]'}`}
+      <nav className="fixed top-0 z-50 flex w-full items-center justify-between px-4 py-4 pointer-events-none md:px-8 md:py-6">
+        <div className="text-xl font-bold tracking-tight pointer-events-auto title-shimmer md:text-2xl">Waymark</div>
+
+        <div className="flex items-center gap-2 pointer-events-auto md:gap-4">
+          <div className="flex rounded-full border border-[var(--color-border)]/40 bg-[var(--color-card)]/90 p-1 shadow-lg backdrop-blur-md">
+            <button
+              onClick={() => setView("map")}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:px-4 ${view === "map" ? "bg-[var(--color-primary)] text-[var(--color-card)]" : "text-[var(--color-secondary)] hover:text-[var(--color-primary)]"}`}
             >
               Map
             </button>
-            <button 
-              onClick={() => setView('timeline')} 
-              className={`px-4 py-1.5 text-xs font-medium rounded-full transition-colors ${view === 'timeline' ? 'bg-[var(--color-primary)] text-[var(--color-card)]' : 'text-[var(--color-secondary)] hover:text-[var(--color-primary)]'}`}
+            <button
+              onClick={() => setView("timeline")}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:px-4 ${view === "timeline" ? "bg-[var(--color-primary)] text-[var(--color-card)]" : "text-[var(--color-secondary)] hover:text-[var(--color-primary)]"}`}
             >
               Timeline
             </button>
+            <button
+              onClick={() => setView("passport")}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors md:px-4 ${view === "passport" ? "bg-[var(--color-primary)] text-[var(--color-card)]" : "text-[var(--color-secondary)] hover:text-[var(--color-primary)]"}`}
+            >
+              Passport
+            </button>
           </div>
 
-          {/* Dark Mode Toggle */}
-          <button 
+          <button
             onClick={() => setIsDark(!isDark)}
-            className="w-10 h-10 rounded-full bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 shadow-lg flex items-center justify-center text-[var(--color-primary)] transition-colors hover:bg-[var(--color-card)]"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)]/40 bg-[var(--color-card)]/90 text-[var(--color-primary)] shadow-lg backdrop-blur-md transition-colors hover:bg-[var(--color-card)]"
+            title={isDark ? "Use light theme" : "Use dark theme"}
           >
-            {isDark ? '☀️' : '🌙'}
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          {/* Wallet Connect */}
           <WalletConnectButton />
         </div>
       </nav>
 
-      {/* Main View */}
-      {view === 'map' ? <WorldMap /> : <TimelineView />}
+      {view === "map" ? <WorldMap /> : view === "timeline" ? <TimelineView /> : <PassportView />}
     </main>
   );
 }

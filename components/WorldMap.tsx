@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, ZoomableGroup, Line, Marker } from "react-simple-maps";
 import { geoCentroid } from "d3-geo";
 import { uploadToShelby, getShelbyUrl } from "@/lib/shelby";
 import type { WalletSigner } from "@/lib/shelby";
+import { compactHash, getCountryMeta, getDisplayCountryName } from "@/lib/waymark/data";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { toPng } from "html-to-image";
+import { Play, RotateCcw } from "lucide-react";
 
 const geoUrl = "/features.json";
 const TOTAL_COUNTRIES = 177; // approx from 110m topology
@@ -39,6 +41,20 @@ type MoveEndEvent = {
 
 type GeographiesRenderProps = {
   geographies: GeoFeature[];
+};
+
+type HoverCountry = {
+  id: string;
+  name: string;
+};
+
+type JourneyStop = {
+  id: string;
+  countryId: string;
+  country: string;
+  date: string;
+  text: string;
+  coordinates: [number, number];
 };
 
 const getCountryName = (geo: GeoFeature) => geo.properties.NAME || geo.properties.name || "Unknown";
@@ -88,6 +104,9 @@ export default function WorldMap() {
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [latestTx, setLatestTx] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [hoverCountry, setHoverCountry] = useState<HoverCountry | null>(null);
+  const [replayIndex, setReplayIndex] = useState(0);
+  const [isReplaying, setIsReplaying] = useState(false);
   
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -135,6 +154,47 @@ export default function WorldMap() {
   const loadGeoData = useCallback((geographies: GeoFeature[]) => {
     setGeoData(current => current.length > 0 ? current : geographies);
   }, []);
+
+  const journeyStops = useMemo<JourneyStop[]>(() => {
+    if (!geoData.length) return [];
+
+    return Object.entries(visitedCountries)
+      .flatMap(([countryId, memories]) => {
+        const geo = geoData.find(g => g.id === countryId);
+        if (!geo || memories.length === 0) return [];
+        const centroid = geoCentroid(geo) as [number, number];
+        return memories.map((memory) => ({
+          id: memory.id,
+          countryId,
+          country: memory.country,
+          date: memory.date,
+          text: memory.text,
+          coordinates: centroid,
+        }));
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [geoData, visitedCountries]);
+
+  useEffect(() => {
+    if (!isReplaying || journeyStops.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      setReplayIndex((current) => {
+        const next = current + 1;
+        if (next >= journeyStops.length) {
+          setIsReplaying(false);
+          return current;
+        }
+        const stop = journeyStops[next];
+        setCenter(stop.coordinates);
+        setZoom(3.5);
+        setSelectedCountry({ id: stop.countryId, name: stop.country });
+        return next;
+      });
+    }, 1200);
+
+    return () => window.clearInterval(timer);
+  }, [isReplaying, journeyStops]);
 
   const saveExperience = (newExp: Record<string, Experience[]>) => {
     setVisitedCountries(newExp);
@@ -271,6 +331,29 @@ export default function WorldMap() {
   };
 
   const experiences = selectedCountry ? (visitedCountries[selectedCountry.id] || []) : [];
+  const hoverExperiences = hoverCountry ? visitedCountries[hoverCountry.id] || [] : [];
+  const hoverTopMemory = hoverExperiences.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const hoverMeta = hoverCountry ? getCountryMeta(hoverCountry.name) : null;
+  const replayedStops = journeyStops.slice(0, replayIndex + 1);
+  const replayCoordinates = replayedStops.map((stop) => stop.coordinates);
+  const activeReplayStop = journeyStops[replayIndex];
+
+  const startReplay = () => {
+    if (!journeyStops.length) return;
+    const firstStop = journeyStops[0];
+    setReplayIndex(0);
+    setIsReplaying(true);
+    setCenter(firstStop.coordinates);
+    setZoom(3.5);
+    setSelectedCountry({ id: firstStop.countryId, name: firstStop.country });
+  };
+
+  const resetReplay = () => {
+    setIsReplaying(false);
+    setReplayIndex(0);
+    setZoom(1);
+    setCenter([0, 55]);
+  };
 
   return (
     <div className="relative w-full h-screen bg-[var(--color-ocean)] overflow-hidden paper-texture map-container" ref={mapRef} onClick={handleMapClick}>
@@ -376,12 +459,33 @@ export default function WorldMap() {
       </div>
 
       {/* Export Button */}
-      <div className="hidden md:block absolute bottom-8 right-8 z-30">
+      <div className="hidden md:flex absolute bottom-8 right-8 z-30 flex-col gap-2">
+        <button onClick={startReplay} disabled={journeyStops.length < 2 || isReplaying} className="bg-[var(--color-primary)] text-[var(--color-card)] backdrop-blur-md border border-[var(--color-border)]/40 rounded-2xl px-5 py-3 shadow-lg text-sm font-medium hover:bg-[#2a1c0e] disabled:opacity-40 transition-colors flex items-center gap-2">
+          <Play className="h-4 w-4" />
+          Replay
+        </button>
+        <button onClick={resetReplay} disabled={!journeyStops.length} className="bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-2xl px-5 py-3 shadow-lg text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-card)] disabled:opacity-40 transition-colors flex items-center gap-2">
+          <RotateCcw className="h-4 w-4" />
+          Reset
+        </button>
         <button onClick={handleExport} className="bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-2xl px-5 py-3 shadow-lg text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-card)] transition-colors flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export Map
         </button>
       </div>
+
+      {activeReplayStop && isReplaying && (
+        <div className="absolute left-1/2 top-36 z-30 w-[min(90vw,360px)] -translate-x-1/2 rounded-2xl border border-[var(--color-border)]/40 bg-[var(--color-card)]/95 p-4 shadow-xl backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-visited)]">Journey Replay</p>
+              <p className="mt-1 text-lg font-bold text-[var(--color-primary)]">{activeReplayStop.country}</p>
+            </div>
+            <span className="text-xs font-mono text-[var(--color-secondary)]">{replayIndex + 1}/{journeyStops.length}</span>
+          </div>
+          <p className="mt-2 line-clamp-2 text-xs text-[var(--color-secondary)]">{activeReplayStop.date} - {activeReplayStop.text}</p>
+        </div>
+      )}
 
       {/* Hint */}
       {showHint && (
@@ -406,11 +510,16 @@ export default function WorldMap() {
                         key={geo.rsmKey}
                         geography={geo}
                         onMouseEnter={(e: React.MouseEvent) => {
-                          setTooltipContent(getCountryName(geo));
+                          const name = getCountryName(geo);
+                          setTooltipContent(name);
+                          setHoverCountry({ id: geo.id, name });
                           setTooltipPos({ x: e.clientX, y: e.clientY });
                         }}
                         onMouseMove={(e: React.MouseEvent) => setTooltipPos({ x: e.clientX, y: e.clientY })}
-                        onMouseLeave={() => setTooltipContent("")}
+                        onMouseLeave={() => {
+                          setTooltipContent("");
+                          setHoverCountry(null);
+                        }}
                         onClick={() => handleCountryClick(geo)}
                         style={{
                           default: {
@@ -464,6 +573,24 @@ export default function WorldMap() {
                       </Marker>
                     );
                   })}
+                  {replayCoordinates.length > 1 && (
+                    <Line
+                      coordinates={replayCoordinates}
+                      stroke="var(--color-accent)"
+                      strokeWidth={1.4}
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  )}
+                  {activeReplayStop && (
+                    <Marker coordinates={activeReplayStop.coordinates}>
+                      <circle r={5} fill="var(--color-primary)" opacity={0.9} />
+                      <circle r={9} fill="none" stroke="var(--color-primary)" strokeWidth={1} opacity={0.5}>
+                        <animate attributeName="r" values="7;14;7" dur="1.2s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.6;0;0.6" dur="1.2s" repeatCount="indefinite" />
+                      </circle>
+                    </Marker>
+                  )}
                 </>
               );
             }}
@@ -473,8 +600,30 @@ export default function WorldMap() {
 
       {/* Tooltip following cursor */}
       {tooltipContent && (
-        <div className="fixed z-50 bg-[var(--color-card)] px-4 py-2 rounded-xl shadow-lg text-sm font-medium pointer-events-none border border-[var(--color-border)]/30" style={{ left: tooltipPos.x + 12, top: tooltipPos.y - 10 }}>
-          {tooltipContent}
+        <div className="fixed z-50 w-72 rounded-2xl border border-[var(--color-border)]/40 bg-[var(--color-card)]/95 p-4 text-sm shadow-2xl backdrop-blur-md pointer-events-none" style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 14 }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-visited)]">{hoverMeta?.subregion || "Atlas"}</p>
+              <p className="mt-1 text-base font-bold text-[var(--color-primary)]">{hoverCountry ? getDisplayCountryName(hoverCountry.name) : tooltipContent}</p>
+            </div>
+            <span className="inline-flex h-9 min-w-11 items-center justify-center rounded-md border border-[var(--color-visited)]/40 bg-[var(--color-background)] px-2 font-mono text-xs font-black text-[var(--color-visited)]">
+              {hoverMeta?.flagCode || "WM"}
+            </span>
+          </div>
+          <div className="mt-3 flex items-center gap-3 text-xs text-[var(--color-secondary)]">
+            <span>{hoverExperiences.length} {hoverExperiences.length === 1 ? "memory" : "memories"}</span>
+            {hoverTopMemory && <span>{hoverTopMemory.date}</span>}
+          </div>
+          {hoverTopMemory ? (
+            <div className="mt-3 rounded-xl bg-[var(--color-background)] p-3">
+              <p className="line-clamp-2 text-xs text-[var(--color-primary)]">{hoverTopMemory.text}</p>
+              {hoverTopMemory.txHash && (
+                <p className="mt-2 truncate font-mono text-[10px] font-bold text-[var(--color-visited)]">TX {compactHash(hoverTopMemory.txHash)}</p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 rounded-xl bg-[var(--color-background)] p-3 text-xs text-[var(--color-secondary)]">No archived memory yet.</p>
+          )}
         </div>
       )}
 
