@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup, Marker } from "react-simple-maps";
 import { geoCentroid } from "d3-geo";
 import { uploadToShelby, getShelbyUrl } from "@/lib/shelby";
+import type { WalletSigner } from "@/lib/shelby";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { toPng } from "html-to-image";
 
@@ -19,7 +21,46 @@ interface Experience {
   txHash?: string;
 }
 
+type GeoProperties = {
+  NAME?: string;
+  name?: string;
+};
+
+type GeoFeature = {
+  id: string;
+  rsmKey: string;
+  properties: GeoProperties;
+};
+
+type MoveEndEvent = {
+  coordinates: [number, number];
+  zoom: number;
+};
+
+type GeographiesRenderProps = {
+  geographies: GeoFeature[];
+};
+
+const getCountryName = (geo: GeoFeature) => geo.properties.NAME || geo.properties.name || "Unknown";
+
+function GeoDataLoader({
+  geographies,
+  onLoad,
+}: {
+  geographies: GeoFeature[];
+  onLoad: (geographies: GeoFeature[]) => void;
+}) {
+  useEffect(() => {
+    if (geographies.length > 0) {
+      onLoad(geographies);
+    }
+  }, [geographies, onLoad]);
+
+  return null;
+}
+
 export default function WorldMap() {
+  const { connected, account, signAndSubmitTransaction } = useWallet();
   const mapRef = useRef<HTMLDivElement>(null);
   const [tooltipContent, setTooltipContent] = useState("");
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -42,7 +83,7 @@ export default function WorldMap() {
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState<[number, number]>([0, 55]);
   const [galleryIdx, setGalleryIdx] = useState(0);
-  const [geoData, setGeoData] = useState<any[]>([]);
+  const [geoData, setGeoData] = useState<GeoFeature[]>([]);
   const [ripples, setRipples] = useState<{id: number, x: number, y: number}[]>([]);
   const [cursorPos, setCursorPos] = useState({ x: -100, y: -100 });
   const [latestTx, setLatestTx] = useState<string | null>(null);
@@ -75,7 +116,6 @@ export default function WorldMap() {
       delay: `${Math.random() * 5}s`,
       duration: `${Math.random() * 4 + 4}s`
     })));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cursor glow tracking
@@ -90,16 +130,11 @@ export default function WorldMap() {
     return () => clearTimeout(timer);
   }, []);
 
-  const pendingGeoData = useRef<Record<string, unknown>[] | null>(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (pendingGeoData.current) {
-      setGeoData(pendingGeoData.current);
-      pendingGeoData.current = null;
-    }
-  });
-
   const visitedCount = useMemo(() => Object.keys(visitedCountries).filter(k => visitedCountries[k]?.length > 0).length, [visitedCountries]);
+
+  const loadGeoData = useCallback((geographies: GeoFeature[]) => {
+    setGeoData(current => current.length > 0 ? current : geographies);
+  }, []);
 
   const saveExperience = (newExp: Record<string, Experience[]>) => {
     setVisitedCountries(newExp);
@@ -112,11 +147,11 @@ export default function WorldMap() {
     const lower = q.toLowerCase();
     const results = geoData
       .filter(g => {
-        const n = (g.properties.NAME || g.properties.name || "").toLowerCase();
+        const n = getCountryName(g).toLowerCase();
         return n.includes(lower);
       })
       .slice(0, 8)
-      .map(g => ({ id: g.id, name: g.properties.NAME || g.properties.name }));
+      .map(g => ({ id: g.id, name: getCountryName(g) }));
     setSearchResults(results);
   }, [geoData]);
 
@@ -142,10 +177,8 @@ export default function WorldMap() {
     }, 800);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCountryClick = (geo: any) => {
-    const { NAME, name } = geo.properties;
-    setSelectedCountry({ id: geo.id, name: NAME || name });
+  const handleCountryClick = (geo: GeoFeature) => {
+    setSelectedCountry({ id: geo.id, name: getCountryName(geo) });
     setGalleryIdx(0);
     setExperienceText("");
     setExperienceDate("");
@@ -192,7 +225,15 @@ export default function WorldMap() {
       
       for (const file of selectedFiles) {
         const processedFile = await processImageWithFilter(file, selectedFilterCss);
-        const { cid, txHash } = await uploadToShelby(processedFile);
+        // Build wallet signer if a wallet is connected
+        let walletSigner: WalletSigner | undefined;
+        if (connected && account) {
+          walletSigner = {
+            signAndSubmitTransaction,
+            accountAddress: account.address.toString(),
+          };
+        }
+        const { cid, txHash } = await uploadToShelby(processedFile, walletSigner);
         if (txHash) setLatestTx(txHash);
         newExps.push({
           id: Date.now().toString() + Math.random().toString(),
@@ -351,13 +392,13 @@ export default function WorldMap() {
 
       {/* Map */}
       <ComposableMap projection="geoMercator" projectionConfig={{ scale: isMobile ? 220 : 180 }} width={800} height={isMobile ? 700 : 400} className="w-full h-full">
-        <ZoomableGroup zoom={zoom} center={center} onMoveEnd={({ coordinates, zoom: z }: any) => { setCenter(coordinates as [number, number]); setZoom(z); }}>
+        <ZoomableGroup zoom={zoom} center={center} onMoveEnd={({ coordinates, zoom: z }: MoveEndEvent) => { setCenter(coordinates); setZoom(z); }}>
           <Geographies geography={geoUrl}>
-            {({ geographies }: any) => {
-              if (geoData.length === 0 && geographies.length > 0) { pendingGeoData.current = geographies; }
+            {({ geographies }: GeographiesRenderProps) => {
               return (
                 <>
-                  {geographies.map((geo: any) => {
+                  <GeoDataLoader geographies={geographies} onLoad={loadGeoData} />
+                  {geographies.map((geo) => {
                     const isVisited = !!visitedCountries[geo.id]?.length;
                     const isSelected = selectedCountry?.id === geo.id;
                     return (
@@ -365,8 +406,7 @@ export default function WorldMap() {
                         key={geo.rsmKey}
                         geography={geo}
                         onMouseEnter={(e: React.MouseEvent) => {
-                          const { NAME, name } = geo.properties;
-                          setTooltipContent(NAME || name);
+                          setTooltipContent(getCountryName(geo));
                           setTooltipPos({ x: e.clientX, y: e.clientY });
                         }}
                         onMouseMove={(e: React.MouseEvent) => setTooltipPos({ x: e.clientX, y: e.clientY })}
@@ -394,19 +434,18 @@ export default function WorldMap() {
                     );
                   })}
                   {/* Country labels */}
-                  {!isMobile && geographies.map((geo: any) => {
+                  {!isMobile && geographies.map((geo) => {
                     const centroid = geoCentroid(geo);
-                    const { NAME, name } = geo.properties;
                     return (
                       <Marker key={`${geo.rsmKey}-name`} coordinates={centroid}>
                         <text textAnchor="middle" y={1} style={{ fontFamily: "system-ui", fontSize: "1.5px", fill: "#8b7355", pointerEvents: "none", fontWeight: "500" }}>
-                          {NAME || name}
+                          {getCountryName(geo)}
                         </text>
                       </Marker>
                     );
                   })}
                   {/* Memory count badges + pulsing beacons */}
-                  {geographies.filter((g: any) => (visitedCountries[g.id]?.length || 0) > 0).map((geo: any) => {
+                  {geographies.filter((g) => (visitedCountries[g.id]?.length || 0) > 0).map((geo) => {
                     const centroid = geoCentroid(geo);
                     const count = visitedCountries[geo.id]?.length || 0;
                     return (

@@ -1,11 +1,30 @@
 /**
  * Shelby Storage Protocol Integration
  * Shelby is a decentralized storage protocol for archiving travel journals.
+ * Supports both wallet-connected uploads (user signs & owns) and ephemeral key fallback.
  */
-import { ShelbyClient } from '@shelby-protocol/sdk/browser';
-import { Ed25519Account, Ed25519PrivateKey, Network } from '@aptos-labs/ts-sdk';
+import { ShelbyClient, ShelbyBlobClient, generateCommitments, createDefaultErasureCodingProvider } from '@shelby-protocol/sdk/browser';
+import { Ed25519Account, Ed25519PrivateKey, Network, AccountAddress } from '@aptos-labs/ts-sdk';
+import type { AptosSignAndSubmitTransactionOutput, InputTransactionData } from '@aptos-labs/wallet-adapter-react';
 
 const SHELBY_KEY = 'waymark_shelby_ephemeral_key';
+
+
+
+/**
+ * Wallet signer interface — mirrors what the Aptos wallet adapter provides.
+ * When provided, the user's own wallet signs and owns the transaction.
+ */
+export interface WalletSigner {
+  signAndSubmitTransaction: (transaction: InputTransactionData) => Promise<AptosSignAndSubmitTransactionOutput>;
+  accountAddress: string;
+}
+
+type ShelbyUploadResult = {
+  hash?: string;
+  transaction_hash?: string;
+  tx_hash?: string;
+};
 
 async function getEphemeralAccount(client: ShelbyClient): Promise<Ed25519Account> {
   // Check for a custom private key provided via environment variable
@@ -46,7 +65,97 @@ async function getEphemeralAccount(client: ShelbyClient): Promise<Ed25519Account
   return account;
 }
 
-export async function uploadToShelby(file: File): Promise<{ cid: string; txHash?: string }> {
+/**
+ * Upload a file to Shelby using the connected wallet's signer.
+ * The user signs the on-chain registration tx from their own wallet,
+ * making them the owner of the blob on-chain.
+ */
+async function uploadWithWallet(
+  client: ShelbyClient,
+  wallet: WalletSigner,
+  blobData: Uint8Array,
+  blobName: string
+): Promise<{ cid: string; txHash?: string }> {
+  const accountAddress = AccountAddress.from(wallet.accountAddress);
+
+  console.log(`[Shelby] Generating commitments for "${blobName}" (${blobData.byteLength} bytes)...`);
+
+  // 1. Generate commitments (erasure-code the blob & compute merkle root)
+  const provider = await createDefaultErasureCodingProvider();
+  const commitments = await generateCommitments(provider, blobData);
+  const numChunksets = commitments.chunkset_commitments.length;
+
+  console.log(`[Shelby] Commitments generated: merkle_root=${commitments.blob_merkle_root}, chunksets=${numChunksets}`);
+
+  // 2. Build the on-chain registration payload
+  const payload = ShelbyBlobClient.createRegisterBlobPayload({
+    account: accountAddress,
+    blobName,
+    blobSize: blobData.byteLength,
+    blobMerkleRoot: commitments.blob_merkle_root,
+    expirationMicros: Date.now() * 1000 + 31536000000000, // ~1 year
+    numChunksets,
+    encoding: 0,
+  });
+
+  console.log(`[Shelby] Requesting wallet signature for blob registration...`);
+
+  // 3. Sign & submit the registration tx via the user's wallet
+  const txResult = await wallet.signAndSubmitTransaction({ data: payload });
+  const txHash = txResult.hash;
+
+  console.log(`[Shelby] ✅ Registration tx submitted: ${txHash || 'unknown'}`);
+
+  // 4. Upload blob data to the Shelby RPC storage layer
+  console.log(`[Shelby] Uploading blob data to RPC storage...`);
+  await client.rpc.putBlob({
+    account: accountAddress,
+    blobName,
+    blobData,
+  });
+
+  const shelbyUri = `shelby://${accountAddress.toString()}/${blobName}`;
+  console.log(`[Shelby] ✅ Upload complete: ${shelbyUri}`);
+
+  return { cid: shelbyUri, txHash };
+}
+
+/**
+ * Upload a file to Shelby using an ephemeral key (legacy fallback).
+ */
+async function uploadWithEphemeralKey(
+  client: ShelbyClient,
+  blobData: Uint8Array,
+  blobName: string
+): Promise<{ cid: string; txHash?: string }> {
+  const account = await getEphemeralAccount(client);
+  const addr = account.accountAddress.toString();
+  console.log(`[Shelby] Uploading "${blobName}" (${blobData.byteLength} bytes) with ephemeral account ${addr}`);
+
+  const txResult = await client.upload({
+    blobData,
+    signer: account,
+    blobName,
+    expirationMicros: Date.now() * 1000 + 31536000000000 // ~1 year
+  }) as unknown as ShelbyUploadResult | undefined;
+
+  const txHash = txResult?.hash || txResult?.transaction_hash || txResult?.tx_hash;
+  const shelbyUri = `shelby://${addr}/${blobName}`;
+  console.log(`[Shelby] ✅ Upload successful: ${shelbyUri}`);
+  if (txHash) console.log(`[Shelby] Transaction Hash: ${txHash}`);
+
+  return { cid: shelbyUri, txHash };
+}
+
+/**
+ * Upload a file to Shelby.
+ * If a wallet signer is provided, the user's wallet signs the tx (user owns the blob).
+ * Otherwise falls back to ephemeral key signing.
+ */
+export async function uploadToShelby(
+  file: File,
+  wallet?: WalletSigner
+): Promise<{ cid: string; txHash?: string }> {
   const client = new ShelbyClient({ network: Network.SHELBYNET });
   
   const buffer = await file.arrayBuffer();
@@ -54,23 +163,11 @@ export async function uploadToShelby(file: File): Promise<{ cid: string; txHash?
   const blobName = `waymark/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
   
   try {
-    const account = await getEphemeralAccount(client);
-    const addr = account.accountAddress.toString();
-    console.log(`[Shelby] Uploading "${blobName}" (${blobData.byteLength} bytes) with account ${addr}`);
-    
-    const txResult = await client.upload({
-      blobData,
-      signer: account,
-      blobName,
-      expirationMicros: Date.now() * 1000 + 31536000000000 // ~1 year
-    }) as any;
-    
-    const txHash = txResult?.hash || txResult?.transaction_hash || txResult?.tx_hash;
-    const shelbyUri = `shelby://${addr}/${blobName}`;
-    console.log(`[Shelby] ✅ Upload successful: ${shelbyUri}`);
-    if (txHash) console.log(`[Shelby] Transaction Hash: ${txHash}`);
-    
-    return { cid: shelbyUri, txHash };
+    if (wallet) {
+      return await uploadWithWallet(client, wallet, blobData, blobName);
+    } else {
+      return await uploadWithEphemeralKey(client, blobData, blobName);
+    }
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error(`[Shelby] ❌ Upload failed: ${errMsg}`, err);
