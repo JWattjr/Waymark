@@ -107,6 +107,7 @@ export default function WorldMap() {
   const [hoverCountry, setHoverCountry] = useState<HoverCountry | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(true);
   
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -243,6 +244,7 @@ export default function WorldMap() {
     setExperienceText("");
     setExperienceDate("");
     setSelectedFiles([]);
+    setShowUploadForm(true);
   };
 
   const [imageFilter, setImageFilter] = useState("none");
@@ -311,6 +313,7 @@ export default function WorldMap() {
       setExperienceDate("");
       setImageFilter("none");
       setGalleryIdx(current.length); // jump to new
+      setShowUploadForm(false);
     } catch (err) {
       console.error(err);
       alert("Upload failed — check console for details");
@@ -450,7 +453,7 @@ export default function WorldMap() {
       </div>
 
       {/* Progress Counter */}
-      <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-30 bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full md:rounded-2xl px-6 py-3 shadow-lg flex items-center gap-3 whitespace-nowrap">
+      <div className="absolute bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-30 bg-[var(--color-card)]/90 backdrop-blur-md border border-[var(--color-border)]/40 rounded-full md:rounded-2xl px-6 py-3 shadow-lg flex items-center gap-3 whitespace-nowrap">
         <span className="text-xl md:text-2xl font-bold text-[var(--color-visited)]">{visitedCount}</span>
         <span className="text-[var(--color-secondary)] text-xs md:text-sm">/ {TOTAL_COUNTRIES} explored</span>
         <div className="hidden md:block w-24 h-2 bg-[var(--color-border)]/30 rounded-full overflow-hidden ml-2">
@@ -629,46 +632,59 @@ export default function WorldMap() {
 
       {/* Sidebar */}
       {selectedCountry && (
-        <div className="absolute bottom-0 md:top-0 right-0 w-full md:w-[420px] h-[65vh] md:h-full bg-[var(--color-card)] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] md:shadow-2xl z-40 flex flex-col animate-slide-up md:animate-slide-in border-t md:border-t-0 md:border-l border-[var(--color-border)]/30 rounded-t-3xl md:rounded-none">
+        <div className="absolute bottom-20 right-0 z-40 flex h-[68dvh] w-full flex-col rounded-t-3xl border-t border-[var(--color-border)]/30 bg-[var(--color-card)] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] animate-slide-up md:bottom-auto md:top-0 md:h-full md:w-[420px] md:rounded-none md:border-l md:border-t-0 md:shadow-2xl md:animate-slide-in">
           {/* Header */}
-          <div className="p-4 md:p-6 border-b border-[var(--color-border)]/20 flex justify-between items-center bg-[var(--color-background)] shrink-0">
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold text-[var(--color-primary)]">{selectedCountry.name}</h2>
-              <p className="text-xs text-[var(--color-secondary)] mt-1">{experiences.length} {experiences.length === 1 ? "memory" : "memories"} archived</p>
+          <div className="sticky top-0 shrink-0 border-b border-[var(--color-border)]/20 bg-[var(--color-background)] p-4 md:p-6">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[var(--color-border)] md:hidden" />
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-[var(--color-primary)]">{selectedCountry.name}</h2>
+                <p className="text-xs text-[var(--color-secondary)] mt-1">{experiences.length} {experiences.length === 1 ? "memory" : "memories"} archived</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowUploadForm((current) => !current)}
+                  className="min-h-10 rounded-xl bg-[var(--color-card)] px-3 text-xs font-bold text-[var(--color-primary)] border border-[var(--color-border)]/30 transition-colors hover:bg-[var(--color-border)]/20"
+                >
+                  {showUploadForm ? "Hide" : "Add"}
+                </button>
+                <button onClick={() => setSelectedCountry(null)} className="w-10 h-10 rounded-xl bg-[var(--color-card)] flex items-center justify-center text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)]/30 transition-colors">&times;</button>
+              </div>
             </div>
-            <button onClick={() => setSelectedCountry(null)} className="w-9 h-9 rounded-xl bg-[var(--color-background)] flex items-center justify-center text-[var(--color-secondary)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)]/30 transition-colors">&times;</button>
           </div>
 
-          <div className="flex-1 overflow-y-auto sidebar-scroll p-4 md:p-6 flex flex-col gap-6">
+          <div className="flex-1 overflow-y-auto sidebar-scroll p-4 pb-6 md:p-6 flex flex-col gap-6">
             {/* Upload Form */}
-            <div className="space-y-3 bg-[var(--color-background)] p-5 rounded-2xl border border-[var(--color-border)]/20">
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-secondary)]">Add Memory</h3>
-              <textarea placeholder="What did you experience here?" value={experienceText} onChange={e => setExperienceText(e.target.value)}
-                className="w-full p-3 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]/30 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 resize-none placeholder-[var(--color-secondary)]/60" rows={3} />
-              <input type="date" value={experienceDate} onChange={e => setExperienceDate(e.target.value)}
-                className="w-full p-3 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]/30 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 text-[var(--color-primary)]" />
-              <input type="file" accept="image/*" multiple onChange={e => setSelectedFiles(Array.from(e.target.files || []))}
-                className="w-full text-xs text-[var(--color-secondary)] file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[var(--color-border)]/30 file:text-[var(--color-primary)] hover:file:bg-[var(--color-border)]/50" />
-              
-              {/* Filter Selector */}
-              {selectedFiles.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 sidebar-scroll">
-                  {FILTERS.map(f => (
-                    <button key={f.id} onClick={() => setImageFilter(f.id)} 
-                      className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${imageFilter === f.id ? "bg-[var(--color-primary)] text-[var(--color-card)] border-[var(--color-primary)]" : "bg-[var(--color-card)] text-[var(--color-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]"}`}>
-                      {f.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+            {showUploadForm && (
+              <div className="space-y-3 bg-[var(--color-background)] p-4 md:p-5 rounded-2xl border border-[var(--color-border)]/20">
+                <h3 className="font-semibold text-sm uppercase tracking-wider text-[var(--color-secondary)]">Add Memory</h3>
+                <textarea placeholder="What did you experience here?" value={experienceText} onChange={e => setExperienceText(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]/30 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 resize-none placeholder-[var(--color-secondary)]/60" rows={3} />
+                <input type="date" value={experienceDate} onChange={e => setExperienceDate(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)]/30 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/40 text-[var(--color-primary)]" />
+                <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[var(--color-border)]/50 bg-[var(--color-card)] px-4 text-sm font-bold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-border)]/20">
+                  {selectedFiles.length > 0 ? `${selectedFiles.length} photo${selectedFiles.length === 1 ? "" : "s"} selected` : "Add photos"}
+                  <input type="file" accept="image/*" multiple onChange={e => setSelectedFiles(Array.from(e.target.files || []))} className="sr-only" />
+                </label>
+                
+                {/* Filter Selector */}
+                {selectedFiles.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2 sidebar-scroll">
+                    {FILTERS.map(f => (
+                      <button key={f.id} onClick={() => setImageFilter(f.id)} 
+                        className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${imageFilter === f.id ? "bg-[var(--color-primary)] text-[var(--color-card)] border-[var(--color-primary)]" : "bg-[var(--color-card)] text-[var(--color-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]"}`}>
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-
-
-              <button onClick={handleUpload} disabled={uploading || selectedFiles.length === 0 || !experienceText}
-                className="w-full py-3 rounded-xl bg-[var(--color-visited)] text-white font-medium text-sm disabled:opacity-40 hover:bg-[#7a5234] transition-colors">
-                {uploading ? "Uploading to Shelby..." : "Save to Archive"}
-              </button>
-            </div>
+                <button onClick={handleUpload} disabled={uploading || selectedFiles.length === 0 || !experienceText}
+                  className="w-full min-h-12 rounded-xl bg-[var(--color-visited)] text-white font-medium text-sm disabled:opacity-40 hover:bg-[#7a5234] transition-colors">
+                  {uploading ? "Uploading to Shelby..." : "Save to Archive"}
+                </button>
+              </div>
+            )}
 
             {/* Gallery */}
             {experiences.length > 0 && (

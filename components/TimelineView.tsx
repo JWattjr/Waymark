@@ -32,10 +32,10 @@ export default function TimelineView() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen pt-32 pb-24 px-8 overflow-y-auto bg-[var(--color-ocean)] paper-texture">
+    <div className="w-full min-h-screen pt-28 pb-32 px-4 md:pt-32 md:pb-24 md:px-8 overflow-y-auto bg-[var(--color-ocean)] paper-texture">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-[var(--color-primary)] mb-4">Journey Timeline</h1>
-        <p className="text-[var(--color-secondary)] mb-16 text-lg">A chronological archive of your adventures.</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-[var(--color-primary)] mb-4">Journey Timeline</h1>
+        <p className="text-[var(--color-secondary)] mb-10 md:mb-16 text-base md:text-lg">A chronological archive of your adventures.</p>
 
         {experiences.length === 0 ? (
           <div className="text-center py-20 text-[var(--color-secondary)]">
